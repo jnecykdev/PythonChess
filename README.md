@@ -26,31 +26,19 @@ PythonChess
 ├── chess_board.py (or chess_logic.py)
 
 ├── utils.py
-
-└── assets/
    
+└── assets/
     ├── bB.png
-    
     ├── bK.png
-    
     ├── bN.png
-    
     ├── bP.png
-    
     ├── bQ.png
-    
     ├── bR.png
-    
     ├── wB.png
-    
     ├── wK.png
-    
     ├── wN.png
-    
     ├── wP.png
-    
     ├── wQ.png
-    
     └── wR.png
     
 1.3 Installation
