@@ -18,27 +18,38 @@ pip: Python's package installer, which usually comes bundled with Python 3.
 1.2 Project Structure
 Your project directory should be organized as follows. It's crucial that the assets folder is directly within your main project directory, containing the piece image files.
 
-PythonChess
-/
+PythonChess/
 
 ├── main.py
 
 ├── chess_board.py (or chess_logic.py)
 
-├── utils.py
-   
+├── utils.py  
+
 └── assets/
+
     ├── bB.png
+    
     ├── bK.png
+    
     ├── bN.png
+    
     ├── bP.png
+    
     ├── bQ.png
+    
     ├── bR.png
+    
     ├── wB.png
+    
     ├── wK.png
+    
     ├── wN.png
+    
     ├── wP.png
+    
     ├── wQ.png
+    
     └── wR.png
     
 1.3 Installation
