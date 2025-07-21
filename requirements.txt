@@ -1,9 +1,9 @@
 pygame==2.6.0
-python-chess==6.2.0
+chess==1.9.4
 wheel==0.43.0
-numpy==2.0.0
-scipy==1.14.0
+numpy
+scipy
 pytest==8.3.0
 Pillow==10.4.0
 Kivy==2.3.0
-loguru==0.8.2
+loguru==0.7.3
