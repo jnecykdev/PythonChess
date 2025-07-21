@@ -1,6 +1,4 @@
 # PythonChess
-
-
 1. Getting Started: Running the Game 🚀
 This section provides all the essential information to set up and run the Python Chess game on your system.
 
@@ -82,7 +80,6 @@ python main.py
 
 
 A Pygame window displaying the chessboard and pieces should appear, and the game will prompt you for moves in the console.
-
 
 2. Game Features
 This section details the functionalities and features implemented in the current version of the Python Chess game.
