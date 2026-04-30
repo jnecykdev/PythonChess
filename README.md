@@ -9,10 +9,18 @@ python-chess for legal move validation and board state.
 - Piece images loaded from the `assets/` directory.
 - Click-to-move gameplay:
   - Click one of the current player's pieces to select it.
-  - Legal destination squares are highlighted in green.
+  - Legal destination squares are highlighted by move type.
   - Click a highlighted square to move the selected piece.
   - Clicking another current-player piece switches selection.
   - Clicking outside the board clears selection.
+- Side panel with the active turn, captured pieces, and move history.
+- Move categories with distinct highlight colors:
+  - Green: normal move.
+  - Dark green: capture.
+  - Blue: check.
+  - Red: checkmate.
+  - Gold: promotion.
+  - Teal: castling.
 - Terminal gameplay remains available while the Pygame window is open.
 - Legal move validation, turn handling, checkmate, and stalemate detection are handled by `python-chess`.
 - GUI pawn promotion defaults to queen.
@@ -88,9 +96,10 @@ quit
 ## Controls
 
 - Left-click a current-player piece to select it.
-- Green squares show where the selected piece can legally move.
-- Left-click a green square to make the move.
+- Colored squares show where the selected piece can legally move and what type of move each target creates.
+- Left-click a highlighted square to make the move.
 - Left-click the selected piece again to deselect it.
+- The right-side panel shows whose turn it is, captured pieces, and recent moves.
 - Type `quit` in the terminal to exit.
 
 ## Tests

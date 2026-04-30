@@ -6,12 +6,21 @@ import pygame
 from config import (
     ASSETS_DIR,
     BOARD_SIZE,
+    BOARD_PIXEL_SIZE,
     DARK_SQUARE_COLOR,
     DEFAULT_PROMOTION_PIECE,
     HIGHLIGHT_ALPHA,
+    LEGAL_CASTLING_COLOR,
     LEGAL_CAPTURE_COLOR,
+    LEGAL_CHECK_COLOR,
+    LEGAL_CHECKMATE_COLOR,
     LEGAL_MOVE_COLOR,
+    LEGAL_PROMOTION_COLOR,
     LIGHT_SQUARE_COLOR,
+    PANEL_ACCENT_COLOR,
+    PANEL_BACKGROUND_COLOR,
+    PANEL_MUTED_TEXT_COLOR,
+    PANEL_TEXT_COLOR,
     PIECE_SCALE,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -31,6 +40,11 @@ class ChessGame:
         Creates a game with a standard board unless an existing board is given.
         """
         self.board = board or chess.Board()
+        self.move_history = []
+        self.captured_pieces = {
+            chess.WHITE: [],
+            chess.BLACK: [],
+        }
 
     def legal_moves_from(self, square):
         """
@@ -43,7 +57,8 @@ class ChessGame:
         Attempts to push a move in UCI format and returns whether it succeeded.
         """
         try:
-            self.board.push_uci(move_uci)
+            move = self.board.parse_uci(move_uci)
+            self.push_move(move)
             return True
         except ValueError as e:
             print(f"Illegal move: {e}")
@@ -53,7 +68,83 @@ class ChessGame:
         """
         Pushes an already validated python-chess move object.
         """
+        san = self.board.san(move)
+        captured_piece = self.captured_piece_for(move)
+        moving_color = self.board.turn
         self.board.push(move)
+        self.move_history.append(san)
+        if captured_piece:
+            self.captured_pieces[moving_color].append(captured_piece)
+
+    def captured_piece_for(self, move):
+        """
+        Returns the piece captured by a move before that move is pushed.
+        """
+        if not self.board.is_capture(move):
+            return None
+
+        if self.board.is_en_passant(move):
+            direction = -1 if self.board.turn == chess.WHITE else 1
+            capture_square = move.to_square + direction * 8
+            return self.board.piece_at(capture_square)
+
+        return self.board.piece_at(move.to_square)
+
+    def move_category(self, move):
+        """
+        Classifies a legal move for GUI highlighting.
+        """
+        board_copy = self.board.copy(stack=False)
+        board_copy.push(move)
+        if board_copy.is_checkmate():
+            return "checkmate"
+        if move.promotion:
+            return "promotion"
+        if board_copy.is_check():
+            return "check"
+        if self.board.is_castling(move):
+            return "castling"
+        if self.board.is_capture(move):
+            return "capture"
+        return "normal"
+
+    def move_categories_from(self, square):
+        """
+        Returns destination-square move categories for legal moves from a square.
+        """
+        categories = {}
+        priority = {
+            "normal": 0,
+            "capture": 1,
+            "castling": 2,
+            "check": 3,
+            "promotion": 4,
+            "checkmate": 5,
+        }
+        for move in self.legal_moves_from(square):
+            category = self.move_category(move)
+            current = categories.get(move.to_square)
+            if current is None or priority[category] > priority[current]:
+                categories[move.to_square] = category
+        return categories
+
+    def turn_label(self):
+        """
+        Returns the active player as display text.
+        """
+        return "White" if self.board.turn == chess.WHITE else "Black"
+
+    def move_history_rows(self):
+        """
+        Returns move history grouped into full-move display rows.
+        """
+        rows = []
+        for index in range(0, len(self.move_history), 2):
+            move_number = index // 2 + 1
+            white_move = self.move_history[index]
+            black_move = self.move_history[index + 1] if index + 1 < len(self.move_history) else ""
+            rows.append((move_number, white_move, black_move))
+        return rows
 
     def save_game_state(self, filename="chess_game.json"):
         """
@@ -62,6 +153,9 @@ class ChessGame:
         game_state = {
             "fen": self.board.fen(),
             "turn": self.board.turn == chess.WHITE,
+            "move_history": self.move_history,
+            "captured_white": [piece.symbol() for piece in self.captured_pieces[chess.WHITE]],
+            "captured_black": [piece.symbol() for piece in self.captured_pieces[chess.BLACK]],
         }
         with open(filename, "w") as f:
             json.dump(game_state, f, indent=4)
@@ -76,6 +170,17 @@ class ChessGame:
                 game_state = json.load(f)
             self.board = chess.Board(game_state["fen"])
             self.board.turn = chess.WHITE if game_state["turn"] else chess.BLACK
+            self.move_history = game_state.get("move_history", [])
+            self.captured_pieces = {
+                chess.WHITE: [
+                    chess.Piece.from_symbol(symbol)
+                    for symbol in game_state.get("captured_white", [])
+                ],
+                chess.BLACK: [
+                    chess.Piece.from_symbol(symbol)
+                    for symbol in game_state.get("captured_black", [])
+                ],
+            }
             print(f"Game loaded from {filename}")
             return True
         except FileNotFoundError:
@@ -96,8 +201,19 @@ class BoardRenderer:
         Initializes piece images and reusable highlight overlays.
         """
         self.piece_images = {}
-        self.move_highlight = self._create_highlight_overlay(LEGAL_MOVE_COLOR)
-        self.capture_highlight = self._create_highlight_overlay(LEGAL_CAPTURE_COLOR)
+        self.highlight_overlays = {
+            "normal": self._create_highlight_overlay(LEGAL_MOVE_COLOR),
+            "capture": self._create_highlight_overlay(LEGAL_CAPTURE_COLOR),
+            "check": self._create_highlight_overlay(LEGAL_CHECK_COLOR),
+            "checkmate": self._create_highlight_overlay(LEGAL_CHECKMATE_COLOR),
+            "promotion": self._create_highlight_overlay(LEGAL_PROMOTION_COLOR),
+            "castling": self._create_highlight_overlay(LEGAL_CASTLING_COLOR),
+        }
+        self.move_highlight = self.highlight_overlays["normal"]
+        self.capture_highlight = self.highlight_overlays["capture"]
+        self.title_font = pygame.font.Font(None, 30)
+        self.body_font = pygame.font.Font(None, 22)
+        self.small_font = pygame.font.Font(None, 18)
         pygame.font.init()
         self._load_piece_images()
 
@@ -171,11 +287,12 @@ class BoardRenderer:
         """
         return chess.square(col, BOARD_SIZE - 1 - row)
 
-    def draw(self, screen, board, selected_square=None, legal_destinations=None):
+    def draw(self, screen, game, selected_square=None, move_categories=None):
         """
-        Draws squares, highlights, and pieces for the current board state.
+        Draws the board, highlighted moves, pieces, and side panel.
         """
-        legal_destinations = legal_destinations or set()
+        board = game.board
+        move_categories = move_categories or {}
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
                 square_rect = self.square_rect(row, col)
@@ -185,12 +302,8 @@ class BoardRenderer:
                 square_index = self.board_square(row, col)
                 if square_index == selected_square:
                     pygame.draw.rect(screen, SELECTED_SQUARE_COLOR, square_rect)
-                elif square_index in legal_destinations:
-                    overlay = (
-                        self.capture_highlight
-                        if board.piece_at(square_index)
-                        else self.move_highlight
-                    )
+                elif square_index in move_categories:
+                    overlay = self.highlight_overlays[move_categories[square_index]]
                     screen.blit(overlay, square_rect)
 
                 piece_on_board = board.piece_at(square_index)
@@ -202,6 +315,61 @@ class BoardRenderer:
                     piece_img = self.piece_images[image_key]
                     piece_rect = piece_img.get_rect(center=square_rect.center)
                     screen.blit(piece_img, piece_rect)
+
+        self.draw_panel(screen, game)
+
+    def draw_panel(self, screen, game):
+        """
+        Draws turn, captured pieces, and move history in the side panel.
+        """
+        panel_rect = pygame.Rect(BOARD_PIXEL_SIZE, 0, SCREEN_WIDTH - BOARD_PIXEL_SIZE, SCREEN_HEIGHT)
+        pygame.draw.rect(screen, PANEL_BACKGROUND_COLOR, panel_rect)
+        pygame.draw.line(screen, PANEL_ACCENT_COLOR, (BOARD_PIXEL_SIZE, 0), (BOARD_PIXEL_SIZE, SCREEN_HEIGHT), 3)
+
+        x = BOARD_PIXEL_SIZE + 18
+        y = 22
+        self._draw_text(screen, "PythonChess", self.title_font, PANEL_TEXT_COLOR, x, y)
+        y += 42
+        self._draw_text(screen, "Turn", self.small_font, PANEL_MUTED_TEXT_COLOR, x, y)
+        y += 20
+        self._draw_text(screen, game.turn_label(), self.title_font, PANEL_ACCENT_COLOR, x, y)
+
+        y += 54
+        self._draw_text(screen, "Captured by White", self.small_font, PANEL_MUTED_TEXT_COLOR, x, y)
+        y += 22
+        y = self._draw_captured_pieces(screen, game.captured_pieces[chess.WHITE], x, y)
+
+        y += 22
+        self._draw_text(screen, "Captured by Black", self.small_font, PANEL_MUTED_TEXT_COLOR, x, y)
+        y += 22
+        y = self._draw_captured_pieces(screen, game.captured_pieces[chess.BLACK], x, y)
+
+        y += 28
+        self._draw_text(screen, "Move History", self.small_font, PANEL_MUTED_TEXT_COLOR, x, y)
+        y += 24
+        for move_number, white_move, black_move in game.move_history_rows()[-16:]:
+            move_text = f"{move_number}. {white_move:<7} {black_move}"
+            self._draw_text(screen, move_text, self.body_font, PANEL_TEXT_COLOR, x, y)
+            y += 24
+
+    def _draw_captured_pieces(self, screen, pieces, x, y):
+        """
+        Draws compact captured-piece symbols and returns the next y position.
+        """
+        if not pieces:
+            self._draw_text(screen, "-", self.body_font, PANEL_TEXT_COLOR, x, y)
+            return y + 22
+
+        symbols = " ".join(piece.symbol() for piece in pieces)
+        self._draw_text(screen, symbols, self.body_font, PANEL_TEXT_COLOR, x, y)
+        return y + 22
+
+    def _draw_text(self, screen, text, font, color, x, y):
+        """
+        Draws a text label in the side panel.
+        """
+        surface = font.render(text, True, color)
+        screen.blit(surface, (x, y))
 
 
 class ClickController:
@@ -217,13 +385,14 @@ class ClickController:
         self.promotion_piece = promotion_piece
         self.selected_square = None
         self.legal_destinations = set()
+        self.move_categories = {}
 
     def screen_square(self, position):
         """
         Converts a screen pixel position to a python-chess square.
         """
         x, y = position
-        if not (0 <= x < SCREEN_WIDTH and 0 <= y < SCREEN_HEIGHT):
+        if not (0 <= x < BOARD_PIXEL_SIZE and 0 <= y < BOARD_PIXEL_SIZE):
             return None
 
         row = y // SQUARE_SIZE
@@ -235,9 +404,8 @@ class ClickController:
         Selects a piece and stores its legal destination squares.
         """
         self.selected_square = square
-        self.legal_destinations = {
-            move.to_square for move in self.game.legal_moves_from(square)
-        }
+        self.move_categories = self.game.move_categories_from(square)
+        self.legal_destinations = set(self.move_categories)
 
     def clear_selection(self):
         """
@@ -245,6 +413,7 @@ class ClickController:
         """
         self.selected_square = None
         self.legal_destinations = set()
+        self.move_categories = {}
 
     def _promotion_piece(self, move):
         """
@@ -359,6 +528,13 @@ class ChessBoard:
         """
         return self.click_controller.legal_destinations
 
+    @property
+    def move_categories(self):
+        """
+        Exposes GUI legal destination categories.
+        """
+        return self.click_controller.move_categories
+
     def _square_rect(self, row, col):
         """
         Returns the screen-space rectangle for a board square.
@@ -407,9 +583,9 @@ class ChessBoard:
         """
         self.renderer.draw(
             screen,
-            self.board,
+            self.game,
             self.selected_square,
-            self.legal_destinations,
+            self.move_categories,
         )
 
     def move_piece(self, move_uci):

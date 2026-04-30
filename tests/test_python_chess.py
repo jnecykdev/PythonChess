@@ -15,8 +15,14 @@ from chess_board import (
 )
 from config import (
     BOARD_SIZE,
+    BOARD_PIXEL_SIZE,
+    LEGAL_CASTLING_COLOR,
     LEGAL_CAPTURE_COLOR,
+    LEGAL_CHECK_COLOR,
+    LEGAL_CHECKMATE_COLOR,
     LEGAL_MOVE_COLOR,
+    LEGAL_PROMOTION_COLOR,
+    PANEL_BACKGROUND_COLOR,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SQUARE_SIZE,
@@ -51,6 +57,15 @@ def square_center(square):
     row = BOARD_SIZE - 1 - chess.square_rank(square)
     col = chess.square_file(square)
     return col * SQUARE_SIZE + SQUARE_SIZE // 2, row * SQUARE_SIZE + SQUARE_SIZE // 2
+
+
+def square_overlay_point(square):
+    """
+    Converts a square to a pixel near the corner where no piece image is drawn.
+    """
+    row = BOARD_SIZE - 1 - chess.square_rank(square)
+    col = chess.square_file(square)
+    return col * SQUARE_SIZE + 6, row * SQUARE_SIZE + 6
 
 
 @pytest.mark.parametrize(
@@ -97,6 +112,7 @@ def test_chess_board_starts_with_all_piece_images_loaded(chess_board):
     """
     assert len(chess_board.piece_images) == 12
     assert chess_board.board.board_fen() == chess.STARTING_BOARD_FEN
+    assert SCREEN_WIDTH > BOARD_PIXEL_SIZE
 
 
 def test_chess_board_composes_game_renderer_and_click_controller(chess_board):
@@ -116,6 +132,7 @@ def test_terminal_move_path_makes_legal_move_and_clears_selection(chess_board):
 
     assert chess_board.move_piece("e2e4") is True
     assert chess_board.board.piece_at(chess.E4).piece_type == chess.PAWN
+    assert chess_board.game.move_history == ["e4"]
     assert chess_board.selected_square is None
     assert chess_board.legal_destinations == set()
 
@@ -137,6 +154,10 @@ def test_clicking_current_turn_piece_selects_it_and_marks_legal_destinations(che
 
     assert chess_board.selected_square == chess.E2
     assert chess_board.legal_destinations == {chess.E3, chess.E4}
+    assert chess_board.move_categories == {
+        chess.E3: "normal",
+        chess.E4: "normal",
+    }
 
 
 def test_clicking_opponent_piece_on_current_turn_does_not_select(chess_board):
@@ -181,6 +202,7 @@ def test_clicking_legal_destination_makes_move(chess_board):
     assert chess_board.board.piece_at(chess.E4).piece_type == chess.PAWN
     assert chess_board.board.piece_at(chess.E2) is None
     assert chess_board.board.turn == chess.BLACK
+    assert chess_board.game.move_history == ["e4"]
     assert chess_board.selected_square is None
     assert chess_board.legal_destinations == set()
 
@@ -208,6 +230,17 @@ def test_click_outside_board_clears_selection(chess_board):
     assert chess_board.legal_destinations == set()
 
 
+def test_click_in_side_panel_clears_selection_without_moving(chess_board):
+    """
+    Ensures side panel clicks are ignored by board move handling.
+    """
+    chess_board.handle_click(square_center(chess.E2))
+
+    assert chess_board.handle_click((BOARD_PIXEL_SIZE + 20, 20)) is None
+    assert chess_board.board.piece_at(chess.E2).piece_type == chess.PAWN
+    assert chess_board.selected_square is None
+
+
 def test_click_promotion_defaults_to_queen(chess_board):
     """
     Verifies GUI pawn promotion chooses a queen by default.
@@ -215,6 +248,7 @@ def test_click_promotion_defaults_to_queen(chess_board):
     chess_board.board = chess.Board("8/P7/8/8/8/8/8/4k2K w - - 0 1")
     chess_board.handle_click(square_center(chess.A7))
 
+    assert chess_board.move_categories[chess.A8] == "promotion"
     assert chess_board.handle_click(square_center(chess.A8)) == "a7a8q"
     promoted_piece = chess_board.board.piece_at(chess.A8)
     assert promoted_piece.piece_type == chess.QUEEN
@@ -264,6 +298,55 @@ def test_draw_board_paints_legal_destinations_green(chess_board):
     assert abs(green_pixel.g - LEGAL_MOVE_COLOR[1]) < 80
 
 
+@pytest.mark.parametrize(
+    ("fen", "from_square", "to_square", "category", "color"),
+    [
+        ("8/8/8/3p4/4P3/8/8/4K2k w - - 0 1", chess.E4, chess.D5, "capture", LEGAL_CAPTURE_COLOR),
+        ("7k/8/8/8/8/8/6R1/K7 w - - 0 1", chess.G2, chess.G8, "check", LEGAL_CHECK_COLOR),
+        ("rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq g3 0 2", chess.D8, chess.H4, "checkmate", LEGAL_CHECKMATE_COLOR),
+        ("8/P7/8/8/8/8/8/4k2K w - - 0 1", chess.A7, chess.A8, "promotion", LEGAL_PROMOTION_COLOR),
+        ("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", chess.E1, chess.G1, "castling", LEGAL_CASTLING_COLOR),
+    ],
+)
+def test_move_categories_drive_highlight_colors(chess_board, fen, from_square, to_square, category, color):
+    """
+    Verifies special legal move categories use their configured highlight colors.
+    """
+    chess_board.board = chess.Board(fen)
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    chess_board.handle_click(square_center(from_square))
+
+    assert chess_board.move_categories[to_square] == category
+
+    chess_board.draw_board(screen)
+    pixel = screen.get_at(square_overlay_point(to_square))
+    assert abs(pixel.r - color[0]) < 120
+    assert abs(pixel.g - color[1]) < 120
+    assert abs(pixel.b - color[2]) < 120
+
+
+def test_captures_are_recorded_for_side_panel(chess_board):
+    """
+    Verifies captured pieces are tracked for the side panel.
+    """
+    chess_board.board = chess.Board("8/8/8/3p4/4P3/8/8/4K2k w - - 0 1")
+
+    assert chess_board.handle_click(square_center(chess.E4)) is None
+    assert chess_board.handle_click(square_center(chess.D5)) == "e4d5"
+    assert [piece.symbol() for piece in chess_board.game.captured_pieces[chess.WHITE]] == ["p"]
+
+
+def test_side_panel_is_drawn_next_to_board(chess_board):
+    """
+    Confirms the side panel area is painted separately from the board.
+    """
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    chess_board.draw_board(screen)
+
+    assert screen.get_at((BOARD_PIXEL_SIZE + 8, 8))[:3] == PANEL_BACKGROUND_COLOR
+
+
 def test_renderer_reuses_cached_highlight_overlays(chess_board):
     """
     Confirms highlight overlays are created once and reused while drawing.
@@ -275,6 +358,8 @@ def test_renderer_reuses_cached_highlight_overlays(chess_board):
 
     assert chess_board.renderer.move_highlight is move_highlight
     assert chess_board.renderer.capture_highlight is capture_highlight
+    assert chess_board.renderer.highlight_overlays["normal"] is move_highlight
+    assert chess_board.renderer.highlight_overlays["capture"] is capture_highlight
     assert move_highlight.get_at((0, 0))[:3] == LEGAL_MOVE_COLOR
     assert capture_highlight.get_at((0, 0))[:3] == LEGAL_CAPTURE_COLOR
 
