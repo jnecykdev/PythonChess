@@ -207,6 +207,33 @@ def test_clicking_legal_destination_makes_move(chess_board):
     assert chess_board.legal_destinations == set()
 
 
+def test_rook_can_move_after_path_is_open(chess_board):
+    """
+    Verifies rook GUI selection and movement stays legal on open files/ranks.
+    """
+    chess_board.board = chess.Board("4k3/8/8/8/8/8/R7/4K3 w - - 0 1")
+
+    assert chess_board.handle_click(square_center(chess.A2)) is None
+    assert chess_board.legal_destinations == {
+        chess.A1,
+        chess.A3,
+        chess.A4,
+        chess.A5,
+        chess.A6,
+        chess.A7,
+        chess.A8,
+        chess.B2,
+        chess.C2,
+        chess.D2,
+        chess.E2,
+        chess.F2,
+        chess.G2,
+        chess.H2,
+    }
+    assert chess_board.handle_click(square_center(chess.A7)) == "a2a7"
+    assert chess_board.board.piece_at(chess.A7).piece_type == chess.ROOK
+
+
 def test_clicking_illegal_destination_clears_selection_without_moving(chess_board):
     """
     Ensures illegal target clicks clear selection without changing the board.
@@ -345,6 +372,57 @@ def test_side_panel_is_drawn_next_to_board(chess_board):
     chess_board.draw_board(screen)
 
     assert screen.get_at((BOARD_PIXEL_SIZE + 8, 8))[:3] == PANEL_BACKGROUND_COLOR
+
+
+def test_move_history_scrolls_when_pointer_is_over_history(chess_board):
+    """
+    Verifies the move-history panel keeps all rows reachable by scrolling.
+    """
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    chess_board.game.move_history = [f"M{index}" for index in range(40)]
+    chess_board.draw_board(screen)
+
+    assert chess_board.renderer.move_history_scroll == 0
+    history_position = chess_board.renderer.history_rect.center
+
+    assert chess_board.handle_scroll(3, history_position) is True
+    chess_board.draw_board(screen)
+    assert chess_board.renderer.move_history_scroll == 3
+
+    assert chess_board.handle_scroll(-2, history_position) is True
+    chess_board.draw_board(screen)
+    assert chess_board.renderer.move_history_scroll == 1
+
+
+def test_move_history_does_not_scroll_outside_history(chess_board):
+    """
+    Ensures mouse wheel events outside the history viewport are ignored.
+    """
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    chess_board.game.move_history = [f"M{index}" for index in range(40)]
+    chess_board.draw_board(screen)
+
+    assert chess_board.handle_scroll(3, square_center(chess.E4)) is False
+    assert chess_board.renderer.move_history_scroll == 0
+
+
+def test_game_over_panel_can_restart_the_game(chess_board):
+    """
+    Verifies the Play Again action resets board, history, and selection state.
+    """
+    screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    for move in ["f2f3", "e7e5", "g2g4", "d8h4"]:
+        assert chess_board.move_piece(move) is True
+
+    assert chess_board.board.is_checkmate()
+    chess_board.draw_board(screen)
+
+    assert chess_board.handle_click(chess_board.renderer.play_again_button_rect.center) == "restart"
+    chess_board.restart_game()
+
+    assert chess_board.board.board_fen() == chess.STARTING_BOARD_FEN
+    assert chess_board.game.move_history == []
+    assert chess_board.selected_square is None
 
 
 def test_renderer_reuses_cached_highlight_overlays(chess_board):

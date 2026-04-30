@@ -1,6 +1,25 @@
 import chess
 
-# --- Your Custom Piece Class ---
+from config import (
+    BLACK_ASSET_PREFIX,
+    BLACK_COLOR_NAME,
+    INVALID_PIECE_COLOR_MESSAGE,
+    INVALID_PIECE_TYPE_MESSAGE,
+    PIECE_COLOR_NAMES,
+    PIECE_COLORS,
+    PIECE_NAME_BY_TYPE,
+    PIECE_REPR_FORMAT,
+    PIECE_SYMBOL_BY_TYPE,
+    PIECE_TYPE_BY_NAME,
+    PIECE_TYPE_NAMES,
+    PIECE_TYPES,
+    UNKNOWN_PIECE_NAME,
+    UNKNOWN_PIECE_SYMBOL,
+    WHITE_ASSET_PREFIX,
+    WHITE_COLOR_NAME,
+)
+
+
 class Piece:
     """
     Represents a single chess piece.
@@ -11,23 +30,15 @@ class Piece:
         """
         Creates a piece from python-chess constants or matching text names.
         """
-        if color not in [chess.WHITE, chess.BLACK, 'white', 'black']:
-            raise ValueError("Piece color must be 'white' or 'black' (or chess.WHITE/BLACK).")
-        if piece_type not in [
-            chess.PAWN, chess.ROOK, chess.KNIGHT, chess.BISHOP,
-            chess.QUEEN, chess.KING,
-            'pawn', 'rook', 'knight', 'bishop', 'queen', 'king'
-        ]:
-            raise ValueError("Piece type must be a valid chess piece type (or chess.PAWN etc.).")
+        if color not in PIECE_COLORS and color not in PIECE_COLOR_NAMES:
+            raise ValueError(INVALID_PIECE_COLOR_MESSAGE)
+        if piece_type not in PIECE_TYPES and piece_type not in PIECE_TYPE_NAMES:
+            raise ValueError(INVALID_PIECE_TYPE_MESSAGE)
 
-        self.color = chess.WHITE if color == 'white' or color is True else chess.BLACK
+        self.color = chess.WHITE if color == WHITE_COLOR_NAME or color is True else chess.BLACK
         
         if isinstance(piece_type, str):
-            type_map = {
-                'pawn': chess.PAWN, 'rook': chess.ROOK, 'knight': chess.KNIGHT,
-                'bishop': chess.BISHOP, 'queen': chess.QUEEN, 'king': chess.KING
-            }
-            self.type = type_map.get(piece_type)
+            self.type = PIECE_TYPE_BY_NAME.get(piece_type)
         else:
             self.type = piece_type
 
@@ -37,16 +48,8 @@ class Piece:
         """
         Builds the asset filename stem for this piece, such as wP or bK.
         """
-        color_char = 'w' if self.color == chess.WHITE else 'b'
-        type_map = {
-            chess.PAWN: 'P',
-            chess.ROOK: 'R',
-            chess.KNIGHT: 'N',
-            chess.BISHOP: 'B',
-            chess.QUEEN: 'Q',
-            chess.KING: 'K'
-        }
-        type_char = type_map.get(self.type, '?')
+        color_char = WHITE_ASSET_PREFIX if self.color == chess.WHITE else BLACK_ASSET_PREFIX
+        type_char = PIECE_SYMBOL_BY_TYPE.get(self.type, UNKNOWN_PIECE_SYMBOL)
         return f"{color_char}{type_char}"
 
     def __str__(self):
@@ -59,10 +62,6 @@ class Piece:
         """
         Returns a developer-friendly representation of the piece.
         """
-        color_str = 'white' if self.color == chess.WHITE else 'black'
-        type_str_map = {v: k for k, v in {
-            'pawn': chess.PAWN, 'rook': chess.ROOK, 'knight': chess.KNIGHT,
-            'bishop': chess.BISHOP, 'queen': chess.QUEEN, 'king': chess.KING
-        }.items()}
-        type_str = type_str_map.get(self.type, 'unknown')
-        return f"Piece(color='{color_str}', type='{type_str}')"
+        color_str = WHITE_COLOR_NAME if self.color == chess.WHITE else BLACK_COLOR_NAME
+        type_str = PIECE_NAME_BY_TYPE.get(self.type, UNKNOWN_PIECE_NAME)
+        return PIECE_REPR_FORMAT.format(color_str, type_str)

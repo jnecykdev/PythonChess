@@ -47,7 +47,10 @@ PythonChess/
 │   └── wR.png
 ├── tests/
 │   └── test_python_chess.py
+├── board_renderer.py
 ├── chess_board.py
+├── chess_game.py
+├── click_controller.py
 ├── config.py
 ├── main.py
 ├── piece.py
@@ -119,8 +122,11 @@ instead.
 ## Main Files
 
 - `main.py`: starts Pygame, keeps the window responsive, and reads terminal moves in a background thread.
-- `chess_board.py`: coordinates the game state, board renderer, click controller, legal move highlighting, and save/load helpers.
-- `config.py`: centralizes board dimensions, colors, FPS, asset paths, and default promotion settings.
+- `chess_board.py`: facade that coordinates game state, rendering, and click interaction.
+- `chess_game.py`: owns chess rules, board state, move history, captures, and save/load helpers.
+- `board_renderer.py`: handles Pygame image loading, board drawing, legal move highlighting, and the side panel.
+- `click_controller.py`: converts mouse positions into selection state and legal GUI moves.
+- `config.py`: centralizes constants, static labels/messages, layout values, piece metadata, asset paths, and default settings.
 - `piece.py`: maps piece colors and types to asset symbols like `wP` and `bK`.
 - `utils.py`: parses terminal move input into UCI format.
 - `tests/test_python_chess.py`: documents and verifies current behavior.

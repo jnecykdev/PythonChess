@@ -2,6 +2,29 @@ import os
 
 import chess
 
+APP_TITLE = "PythonChess"
+WINDOW_TITLE = "Python Chess Game"
+WHITE_TURN_LABEL = "White"
+BLACK_TURN_LABEL = "Black"
+TERMINAL_MOVE_PROMPT = "Terminal move (UCI, e.g., e2e4) or 'quit': "
+TURN_STATUS_MESSAGE = "{}'s turn. Click a piece or enter a move in the terminal."
+GAME_OVER_MESSAGE = "Game over: {}"
+GAME_OVER_HELP_MESSAGE = "Click 'Play Again' in the window, type 'restart', or type 'quit' to exit."
+NEW_GAME_MESSAGE = "New game started."
+EXITING_GAME_MESSAGE = "Exiting game. Goodbye!"
+CLICK_MOVE_SUCCESS_MESSAGE = "Move '{}' made successfully by click."
+TERMINAL_MOVE_SUCCESS_MESSAGE = "Move '{}' made successfully."
+ILLEGAL_MOVE_MESSAGE = "Could not make the move. Please check the input and chess rules."
+INVALID_INPUT_MESSAGE = "Invalid input. Please try again."
+INVALID_MOVE_FORMAT_MESSAGE = "Invalid format. Use UCI format (e.g., 'e2e4' or 'g1f3')."
+ILLEGAL_MOVE_DETAIL_MESSAGE = "Illegal move: {}"
+GAME_SAVED_MESSAGE = "Game saved to {}"
+GAME_LOADED_MESSAGE = "Game loaded from {}"
+SAVE_FILE_NOT_FOUND_MESSAGE = "Error: Save file '{}' not found."
+GAME_LOAD_ERROR_MESSAGE = "Error loading game: {}"
+PIECE_IMAGE_LOAD_WARNING = "Warning: Could not load image {}. Error: {}"
+MOVE_HISTORY_ROW_FORMAT = "{}. {:<7} {}"
+
 BOARD_SIZE = 8
 BOARD_PIXEL_SIZE = 640
 PANEL_WIDTH = 260
@@ -10,6 +33,18 @@ SCREEN_HEIGHT = BOARD_PIXEL_SIZE
 SQUARE_SIZE = BOARD_PIXEL_SIZE // BOARD_SIZE
 FPS = 30
 PIECE_SCALE = 0.88
+DEFAULT_PROMOTION_PIECE = chess.QUEEN
+DEFAULT_SAVE_FILENAME = "chess_game.json"
+READ_MODE = "r"
+WRITE_MODE = "w"
+PROMOTION_RANKS = (0, 7)
+BACKGROUND_COLOR = (0, 0, 0)
+EMPTY_RECT = (0, 0, 0, 0)
+LEFT_MOUSE_BUTTON = 1
+SCROLL_UP_MOUSE_BUTTON = 4
+SCROLL_DOWN_MOUSE_BUTTON = 5
+TERMINAL_THREAD_JOIN_TIMEOUT = 0.1
+UCI_MOVE_LENGTHS = (4, 5)
 
 LIGHT_SQUARE_COLOR = (240, 217, 181)
 DARK_SQUARE_COLOR = (181, 136, 99)
@@ -25,6 +60,118 @@ PANEL_BACKGROUND_COLOR = (38, 42, 48)
 PANEL_TEXT_COLOR = (235, 235, 235)
 PANEL_MUTED_TEXT_COLOR = (175, 181, 190)
 PANEL_ACCENT_COLOR = (92, 184, 122)
-DEFAULT_PROMOTION_PIECE = chess.QUEEN
+
+MOVE_CATEGORY_NORMAL = "normal"
+MOVE_CATEGORY_CAPTURE = "capture"
+MOVE_CATEGORY_CASTLING = "castling"
+MOVE_CATEGORY_CHECK = "check"
+MOVE_CATEGORY_PROMOTION = "promotion"
+MOVE_CATEGORY_CHECKMATE = "checkmate"
+
+MOVE_CATEGORY_PRIORITY = {
+    MOVE_CATEGORY_NORMAL: 0,
+    MOVE_CATEGORY_CAPTURE: 1,
+    MOVE_CATEGORY_CASTLING: 2,
+    MOVE_CATEGORY_CHECK: 3,
+    MOVE_CATEGORY_PROMOTION: 4,
+    MOVE_CATEGORY_CHECKMATE: 5,
+}
+
+MOVE_HIGHLIGHT_COLORS = {
+    MOVE_CATEGORY_NORMAL: LEGAL_MOVE_COLOR,
+    MOVE_CATEGORY_CAPTURE: LEGAL_CAPTURE_COLOR,
+    MOVE_CATEGORY_CHECK: LEGAL_CHECK_COLOR,
+    MOVE_CATEGORY_CHECKMATE: LEGAL_CHECKMATE_COLOR,
+    MOVE_CATEGORY_PROMOTION: LEGAL_PROMOTION_COLOR,
+    MOVE_CATEGORY_CASTLING: LEGAL_CASTLING_COLOR,
+}
+
+PIECE_COLORS = (chess.WHITE, chess.BLACK)
+PIECE_TYPES = (
+    chess.PAWN,
+    chess.ROOK,
+    chess.KNIGHT,
+    chess.BISHOP,
+    chess.QUEEN,
+    chess.KING,
+)
+WHITE_COLOR_NAME = "white"
+BLACK_COLOR_NAME = "black"
+PIECE_COLOR_NAMES = (WHITE_COLOR_NAME, BLACK_COLOR_NAME)
+PIECE_TYPE_NAMES = ("pawn", "rook", "knight", "bishop", "queen", "king")
+PIECE_TYPE_BY_NAME = {
+    "pawn": chess.PAWN,
+    "rook": chess.ROOK,
+    "knight": chess.KNIGHT,
+    "bishop": chess.BISHOP,
+    "queen": chess.QUEEN,
+    "king": chess.KING,
+}
+PIECE_SYMBOL_BY_TYPE = {
+    chess.PAWN: "P",
+    chess.ROOK: "R",
+    chess.KNIGHT: "N",
+    chess.BISHOP: "B",
+    chess.QUEEN: "Q",
+    chess.KING: "K",
+}
+PIECE_NAME_BY_TYPE = {piece_type: name for name, piece_type in PIECE_TYPE_BY_NAME.items()}
+WHITE_ASSET_PREFIX = "w"
+BLACK_ASSET_PREFIX = "b"
+UNKNOWN_PIECE_SYMBOL = "?"
+UNKNOWN_PIECE_NAME = "unknown"
+INVALID_PIECE_COLOR_MESSAGE = "Piece color must be 'white' or 'black' (or chess.WHITE/BLACK)."
+INVALID_PIECE_TYPE_MESSAGE = "Piece type must be a valid chess piece type (or chess.PAWN etc.)."
+PIECE_REPR_FORMAT = "Piece(color='{}', type='{}')"
+
+TITLE_FONT_SIZE = 30
+BODY_FONT_SIZE = 22
+SMALL_FONT_SIZE = 18
+PLACEHOLDER_FONT_SIZE = 36
+PLACEHOLDER_TEXT_COLOR = (255, 0, 0)
+EMPTY_CAPTURE_TEXT = "-"
+
+PANEL_LEFT_PADDING = 18
+PANEL_TOP_PADDING = 22
+PANEL_BORDER_WIDTH = 3
+PANEL_SECTION_GAP = 22
+PANEL_LARGE_GAP = 54
+PANEL_HISTORY_GAP = 28
+PANEL_TEXT_LINE_HEIGHT = 20
+PANEL_TITLE_SPACING = 42
+CAPTURE_ROW_HEIGHT = 22
+MOVE_HISTORY_ROW_HEIGHT = 24
+MOVE_HISTORY_RIGHT_PADDING = 18
+MOVE_HISTORY_BOTTOM_MARGIN = 18
+GAME_OVER_HISTORY_BOTTOM_MARGIN = 124
+GAME_OVER_ACTIONS_BOTTOM_OFFSET = 106
+GAME_OVER_RESULT_GAP = 22
+GAME_OVER_BUTTON_TOP_GAP = 38
+GAME_OVER_BUTTON_WIDTH = 102
+GAME_OVER_BUTTON_HEIGHT = 34
+GAME_OVER_BUTTON_GAP = 10
+BUTTON_BORDER_RADIUS = 4
+SCROLLBAR_TRACK_WIDTH = 4
+SCROLLBAR_MIN_THUMB_HEIGHT = 18
+
+PANEL_TITLE_TEXT = APP_TITLE
+TURN_LABEL_TEXT = "Turn"
+CAPTURED_BY_WHITE_TEXT = "Captured by White"
+CAPTURED_BY_BLACK_TEXT = "Captured by Black"
+MOVE_HISTORY_TITLE_TEXT = "Move History"
+GAME_OVER_TEXT = "Game Over"
+PLAY_AGAIN_TEXT = "Play Again"
+EXIT_TEXT = "Exit"
+RESTART_ACTION = "restart"
+EXIT_ACTION = "exit"
+
+QUIT_COMMAND = "quit"
+RESTART_COMMANDS = (RESTART_ACTION, "playagain", "play_again", "revenge")
+
+GAME_STATE_FEN_KEY = "fen"
+GAME_STATE_TURN_KEY = "turn"
+GAME_STATE_MOVE_HISTORY_KEY = "move_history"
+GAME_STATE_CAPTURED_WHITE_KEY = "captured_white"
+GAME_STATE_CAPTURED_BLACK_KEY = "captured_black"
 
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
