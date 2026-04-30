@@ -22,6 +22,9 @@ class Piece:
     used here primarily to derive image filenames from piece types and colors.
     """
     def __init__(self, color, piece_type):
+        """
+        Creates a piece from python-chess constants or matching text names.
+        """
         if color not in [chess.WHITE, chess.BLACK, 'white', 'black']:
             raise ValueError("Piece color must be 'white' or 'black' (or chess.WHITE/BLACK).")
         if piece_type not in [
@@ -45,6 +48,9 @@ class Piece:
         self.symbol = self._generate_symbol() 
 
     def _generate_symbol(self):
+        """
+        Builds the asset filename stem for this piece, such as wP or bK.
+        """
         color_char = 'w' if self.color == chess.WHITE else 'b'
         type_map = {
             chess.PAWN: 'P',
@@ -58,9 +64,15 @@ class Piece:
         return f"{color_char}{type_char}"
 
     def __str__(self):
+        """
+        Returns the compact symbolic representation used by asset filenames.
+        """
         return self.symbol
 
     def __repr__(self):
+        """
+        Returns a developer-friendly representation of the piece.
+        """
         color_str = 'white' if self.color == chess.WHITE else 'black'
         type_str_map = {v: k for k, v in {
             'pawn': chess.PAWN, 'rook': chess.ROOK, 'knight': chess.KNIGHT,

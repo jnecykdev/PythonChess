@@ -8,12 +8,17 @@ BOARD_SIZE = 8
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 640
 SQUARE_SIZE = SCREEN_WIDTH // BOARD_SIZE # Size of each square in pixels
+PIECE_SCALE = 0.88
 
 LIGHT_SQUARE_COLOR = (240, 217, 181)
 DARK_SQUARE_COLOR = (181, 136, 99)
+SELECTED_SQUARE_COLOR = (246, 246, 105)
+LEGAL_MOVE_COLOR = (66, 176, 79)
+LEGAL_CAPTURE_COLOR = (43, 143, 62)
+HIGHLIGHT_ALPHA = 150
 
 # --- Asset Paths (MUST be defined here) ---
-ASSETS_DIR = "assets" # Folder where piece images are stored
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets") # Folder where piece images are stored
 
 class ChessBoard:
     """
@@ -27,6 +32,8 @@ class ChessBoard:
         """
         self.board = chess.Board() # The core chess board object from python-chess
         self.piece_images = {} # Dictionary to store loaded Pygame image surfaces
+        self.selected_square = None
+        self.legal_destinations = set()
         pygame.font.init() # Initialize font module for text placeholders
         self._load_piece_images()
 
@@ -50,13 +57,132 @@ class ChessBoard:
             try:
                 # Load image and convert for faster blitting
                 image = pygame.image.load(image_path).convert_alpha()
-                # Scale image to fit the square size
-                self.piece_images[(color, piece_type)] = pygame.transform.scale(image, (SQUARE_SIZE, SQUARE_SIZE))
+                self.piece_images[(color, piece_type)] = self._scale_piece_image(image)
             except pygame.error as e:
                 print(f"Warning: Could not load image {image_path}. Error: {e}")
                 # Fallback: Load a placeholder image or draw text
                 self.piece_images[(color, piece_type)] = self._create_text_placeholder(symbol)
 
+    def _scale_piece_image(self, image):
+        """
+        Scales a piece image to fit inside a square while preserving aspect ratio.
+        """
+        max_piece_size = int(SQUARE_SIZE * PIECE_SCALE)
+        width, height = image.get_size()
+        scale = min(max_piece_size / width, max_piece_size / height)
+        scaled_size = (round(width * scale), round(height * scale))
+        return pygame.transform.smoothscale(image, scaled_size)
+
+    def _square_rect(self, row, col):
+        """
+        Returns the screen-space rectangle for a board square.
+        """
+        return pygame.Rect(col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
+
+    def _board_square(self, row, col):
+        """
+        Converts a screen row/column to a python-chess square.
+        Row 0 is rank 8, row 7 is rank 1.
+        """
+        return chess.square(col, BOARD_SIZE - 1 - row)
+
+    def _screen_square(self, position):
+        """
+        Converts a screen pixel position to a python-chess square.
+        Returns None when the click is outside the board.
+        """
+        x, y = position
+        if not (0 <= x < SCREEN_WIDTH and 0 <= y < SCREEN_HEIGHT):
+            return None
+
+        row = y // SQUARE_SIZE
+        col = x // SQUARE_SIZE
+        return self._board_square(row, col)
+
+    def _legal_moves_from(self, square):
+        """
+        Returns all legal moves from the given square.
+        """
+        return [move for move in self.board.legal_moves if move.from_square == square]
+
+    def _select_square(self, square):
+        """
+        Selects a piece and stores the legal destinations used by the GUI.
+        """
+        self.selected_square = square
+        self.legal_destinations = {move.to_square for move in self._legal_moves_from(square)}
+
+    def clear_selection(self):
+        """
+        Clears any GUI selection and legal-move highlights.
+        """
+        self.selected_square = None
+        self.legal_destinations = set()
+
+    def _promotion_piece(self, move):
+        """
+        Defaults GUI pawn promotion to queen while preserving terminal promotion input.
+        """
+        piece = self.board.piece_at(move.from_square)
+        if (
+            piece
+            and piece.piece_type == chess.PAWN
+            and chess.square_rank(move.to_square) in [0, 7]
+        ):
+            return chess.QUEEN
+        return None
+
+    def _legal_click_move(self, from_square, to_square):
+        """
+        Finds the legal move matching a GUI click. Promotions default to queen.
+        """
+        for move in self._legal_moves_from(from_square):
+            if move.to_square != to_square:
+                continue
+
+            promotion = self._promotion_piece(move)
+            if promotion is None or move.promotion == promotion:
+                return move
+
+        return None
+
+    def handle_click(self, position):
+        """
+        Handles a GUI click on the board.
+        First click selects a current-turn piece; second click makes a legal move.
+        """
+        if self.board.is_game_over():
+            self.clear_selection()
+            return None
+
+        clicked_square = self._screen_square(position)
+        if clicked_square is None:
+            self.clear_selection()
+            return None
+
+        clicked_piece = self.board.piece_at(clicked_square)
+
+        if self.selected_square is None:
+            if clicked_piece and clicked_piece.color == self.board.turn:
+                self._select_square(clicked_square)
+            return None
+
+        if clicked_square == self.selected_square:
+            self.clear_selection()
+            return None
+
+        if clicked_piece and clicked_piece.color == self.board.turn:
+            self._select_square(clicked_square)
+            return None
+
+        move = self._legal_click_move(self.selected_square, clicked_square)
+        if move:
+            self.board.push(move)
+            self.clear_selection()
+            return move.uci()
+
+        self.clear_selection()
+        return None
 
     def _create_text_placeholder(self, text):
         """
@@ -88,21 +214,30 @@ class ChessBoard:
         """
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
+                square_rect = self._square_rect(row, col)
+
                 # Draw square
                 color = LIGHT_SQUARE_COLOR if (row + col) % 2 == 0 else DARK_SQUARE_COLOR
-                pygame.draw.rect(screen, color,
-                                 (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+                pygame.draw.rect(screen, color, square_rect)
+
+                square_index = self._board_square(row, col) # Our row 0 is rank 8, col 0 is file A
+                if square_index == self.selected_square:
+                    pygame.draw.rect(screen, SELECTED_SQUARE_COLOR, square_rect)
+                elif square_index in self.legal_destinations:
+                    overlay = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
+                    highlight_color = LEGAL_CAPTURE_COLOR if self.board.piece_at(square_index) else LEGAL_MOVE_COLOR
+                    overlay.fill((*highlight_color, HIGHLIGHT_ALPHA))
+                    screen.blit(overlay, square_rect)
 
                 # Draw piece if present
                 # Convert (row, col) to chess.Square (e.g., (0,0) -> A8, (7,7) -> H1)
-                square_index = chess.square(col, 7 - row) # Our row 0 is rank 8, col 0 is file A
                 piece_on_board = self.board.piece_at(square_index) # This is a python-chess Piece object
 
                 if piece_on_board and (piece_on_board.color, piece_on_board.piece_type) in self.piece_images:
                     # Get the loaded image surface using python-chess piece attributes as keys
                     piece_img = self.piece_images[(piece_on_board.color, piece_on_board.piece_type)]
-                    # Blit (draw) the image onto the screen at the correct position
-                    screen.blit(piece_img, (col * SQUARE_SIZE, row * SQUARE_SIZE))
+                    piece_rect = piece_img.get_rect(center=square_rect.center)
+                    screen.blit(piece_img, piece_rect)
 
     def move_piece(self, move_uci):
         """
@@ -110,6 +245,7 @@ class ChessBoard:
         """
         try:
             self.board.push_uci(move_uci)
+            self.clear_selection()
             return True
         except ValueError as e:
             print(f"Illegal move: {e}")
@@ -117,6 +253,9 @@ class ChessBoard:
 
     # Standby methods for JSON serialization (not changed)
     def save_game_state(self, filename="chess_game.json"):
+        """
+        Saves the current board position and active turn to a JSON file.
+        """
         import json
         game_state = {
             "fen": self.board.fen(),
@@ -127,6 +266,9 @@ class ChessBoard:
         print(f"Game saved to {filename}")
 
     def load_game_state(self, filename="chess_game.json"):
+        """
+        Loads a saved board position and active turn from a JSON file.
+        """
         import json
         try:
             with open(filename, 'r') as f:
