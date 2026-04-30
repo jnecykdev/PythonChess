@@ -1,135 +1,115 @@
 # PythonChess
-1. Getting Started: Running the Game 🚀
-This section provides all the essential information to set up and run the Python Chess game on your system.
 
+PythonChess is a simple chess game built with Pygame for the visual board and
+python-chess for legal move validation and board state.
 
-1.1 Prerequisites
-Before you can run the game, ensure you have the following installed:
+## Features
 
+- Graphical 8x8 chessboard rendered with Pygame.
+- Piece images loaded from the `assets/` directory.
+- Click-to-move gameplay:
+  - Click one of the current player's pieces to select it.
+  - Legal destination squares are highlighted in green.
+  - Click a highlighted square to move the selected piece.
+  - Clicking another current-player piece switches selection.
+  - Clicking outside the board clears selection.
+- Terminal gameplay remains available while the Pygame window is open.
+- Legal move validation, turn handling, checkmate, and stalemate detection are handled by `python-chess`.
+- GUI pawn promotion defaults to queen.
+- Terminal promotion supports UCI promotion notation, such as `a7a8q`.
+- Save and load helpers store game state with FEN in JSON.
+- Pytest test suite for move parsing, click behavior, drawing highlights, and save/load.
 
-Python 3: The game is developed in Python. It's recommended to use Python 3.7 or newer. You can download it from the official Python website.
+## Project Structure
 
-
-pip: Python's package installer, which usually comes bundled with Python 3.
-
-
-1.2 Project Structure
-Your project directory should be organized as follows. It's crucial that the assets folder is directly within your main project directory, containing the piece image files.
-
+```text
 PythonChess/
-
+├── assets/
+│   ├── bB.png
+│   ├── bK.png
+│   ├── bN.png
+│   ├── bP.png
+│   ├── bQ.png
+│   ├── bR.png
+│   ├── wB.png
+│   ├── wK.png
+│   ├── wN.png
+│   ├── wP.png
+│   ├── wQ.png
+│   └── wR.png
+├── tests/
+│   └── test_python_chess.py
+├── chess_board.py
 ├── main.py
+├── piece.py
+├── pytest.ini
+├── requirements.txt
+└── utils.py
+```
 
-├── chess_board.py (or chess_logic.py)
+## Requirements
 
-├── utils.py  
+- Python 3.8 or newer is recommended.
+- Dependencies are listed in `requirements.txt`.
 
-└── assets/
+Install dependencies with:
 
-    ├── bB.png
-    
-    ├── bK.png
-    
-    ├── bN.png
-    
-    ├── bP.png
-    
-    ├── bQ.png
-    
-    ├── bR.png
-    
-    ├── wB.png
-    
-    ├── wK.png
-    
-    ├── wN.png
-    
-    ├── wP.png
-    
-    ├── wQ.png
-    
-    └── wR.png
-    
-1.3 Installation
-Follow these steps to install the required Python libraries:
+```bash
+pip install -r requirements.txt
+```
 
+## Running the Game
 
-Open your terminal or command prompt.
+From the project directory:
 
-
-Navigate to your project directory (e.g., cd C:\Users\Julio\Documents\GitHub\PythonChess).
-
-
-Install the necessary libraries using pip:
-
-
-pip install pygame chess
-
-
-1.4 How to Run
-Once the prerequisites are met and the libraries are installed, you can start the game:
-
-
-Ensure your terminal is still in the PythonChess directory.
-
-
-Execute the main.py script:
-
-
+```bash
 python main.py
+```
 
+If you are using the included virtual environment:
 
-A Pygame window displaying the chessboard and pieces should appear, and the game will prompt you for moves in the console.
+```bash
+venv/bin/python main.py
+```
 
-2. Game Features
-This section details the functionalities and features implemented in the current version of the Python Chess game.
+The Pygame window opens with the chessboard. You can play by clicking pieces on
+the board, or by entering UCI moves in the terminal.
 
+Terminal examples:
 
-2.1 Graphical Interface
-The game provides a visual chessboard using Pygame. It displays a standard 8x8 chessboard with alternating light and dark squares for clear visibility.
+```text
+e2e4
+g1f3
+a7a8q
+quit
+```
 
+## Controls
 
-2.2 Chess Piece Display
-The game is set up to load and display chess piece images.
+- Left-click a current-player piece to select it.
+- Green squares show where the selected piece can legally move.
+- Left-click a green square to make the move.
+- Left-click the selected piece again to deselect it.
+- Type `quit` in the terminal to exit.
 
+## Tests
 
-Asset Loading: It loads piece images (e.g., pawns, rooks, knights, bishops, queens, kings for both white and black) from an assets/ folder.
+Run the test suite with:
 
+```bash
+venv/bin/python -m pytest -q
+```
 
-Image Naming Convention: Images are expected to follow a specific naming convention (e.g., wP.png for a white pawn, bK.png for a black king).
+The tests use dummy SDL video and audio drivers, so they can run in a headless
+terminal environment.
 
+Note: if `venv/bin/pytest` points to an old path, use `venv/bin/python -m pytest`
+instead.
 
-Placeholder Fallback: If a specific piece image is not found in the assets/ directory, the game automatically generates a text-based placeholder (e.g., "wP") directly on the board, ensuring the piece is still visible.
+## Main Files
 
-
-2.3 Game Logic (Powered by python-chess)
-The core chess rules and game state management are handled by the robust python-chess library. This integration provides:
-
-
-Accurate Board State: Manages the positions of all pieces on the board.
-
-
-Move Validation: Automatically checks if entered moves are legal according to chess rules, preventing invalid actions.
-
-
-Turn Management: Correctly enforces turns, switching between White and Black after each valid move.
-
-
-2.4 Console-Based Move Input
-Currently, players interact with the game by entering their moves in UCI (Universal Chess Interface) format via the console.
-
-
-Input Format: Moves are entered as a four or five-character string representing the starting square and the ending square (e.g., e2e4 for a pawn move from e2 to e4, or g1f3 for a knight move from g1 to f3).
-
-
-Feedback: The game provides console feedback on whether a move was successful or illegal.
-
-
-2.5 Game State Management
-The game includes functionalities to save and load the current state of a match.
-
-
-Save Game: You can save the current board position, including whose turn it is, to a JSON file. This uses the FEN (Forsyth-Edwards Notation) standard for compact board representation.
-
-
-Load Game: You can load a previously saved game state from a JSON file, allowing you to resume a match.
+- `main.py`: starts Pygame, keeps the window responsive, and reads terminal moves in a background thread.
+- `chess_board.py`: owns the python-chess board, image loading, drawing, click handling, legal move highlighting, and save/load helpers.
+- `piece.py`: maps piece colors and types to asset symbols like `wP` and `bK`.
+- `utils.py`: parses terminal move input into UCI format.
+- `tests/test_python_chess.py`: documents and verifies current behavior.
