@@ -40,6 +40,7 @@ PythonChess/
 ├── tests/
 │   └── test_python_chess.py
 ├── chess_board.py
+├── config.py
 ├── main.py
 ├── piece.py
 ├── pytest.ini
@@ -109,7 +110,8 @@ instead.
 ## Main Files
 
 - `main.py`: starts Pygame, keeps the window responsive, and reads terminal moves in a background thread.
-- `chess_board.py`: owns the python-chess board, image loading, drawing, click handling, legal move highlighting, and save/load helpers.
+- `chess_board.py`: coordinates the game state, board renderer, click controller, legal move highlighting, and save/load helpers.
+- `config.py`: centralizes board dimensions, colors, FPS, asset paths, and default promotion settings.
 - `piece.py`: maps piece colors and types to asset symbols like `wP` and `bK`.
 - `utils.py`: parses terminal move input into UCI format.
 - `tests/test_python_chess.py`: documents and verifies current behavior.

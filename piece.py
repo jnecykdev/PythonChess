@@ -1,18 +1,4 @@
-import pygame
 import chess
-import os
-
-# --- Configuration Constants (MUST be defined here) ---
-BOARD_SIZE = 8
-SCREEN_WIDTH = 640
-SCREEN_HEIGHT = 640
-SQUARE_SIZE = SCREEN_WIDTH // BOARD_SIZE # Size of each square in pixels
-
-LIGHT_SQUARE_COLOR = (240, 217, 181)
-DARK_SQUARE_COLOR = (181, 136, 99)
-
-# --- Asset Paths (MUST be defined here) ---
-ASSETS_DIR = "assets" # Folder where piece images are stored
 
 # --- Your Custom Piece Class ---
 class Piece:

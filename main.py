@@ -2,19 +2,15 @@ import queue
 import threading
 import pygame
 import chess
-from chess_board import ChessBoard # Import your (now simpler) ChessBoard class
+from chess_board import ChessBoard
+from config import FPS, SCREEN_HEIGHT, SCREEN_WIDTH
 from utils import parse_move_input
 
-# --- Configuration for Pygame (defined here for the main runner) ---
-SCREEN_WIDTH = 640
-SCREEN_HEIGHT = 640
-FPS = 30 # Frames per second
-
-def read_terminal_moves(move_queue):
+def read_terminal_moves(move_queue, stop_event):
     """
     Reads terminal moves without blocking the Pygame window.
     """
-    while True:
+    while not stop_event.is_set():
         try:
             move_input = input("Terminal move (UCI, e.g., e2e4) or 'quit': ").strip().lower()
         except EOFError:
@@ -49,7 +45,12 @@ def run_game():
 
     chess_game_board = ChessBoard() # Instantiate our ChessBoard wrapper
     terminal_moves = queue.Queue()
-    terminal_thread = threading.Thread(target=read_terminal_moves, args=(terminal_moves,), daemon=True)
+    stop_terminal_input = threading.Event()
+    terminal_thread = threading.Thread(
+        target=read_terminal_moves,
+        args=(terminal_moves, stop_terminal_input),
+        daemon=True,
+    )
     terminal_thread.start()
 
     print_turn_status(chess_game_board)
@@ -97,6 +98,8 @@ def run_game():
 
         clock.tick(FPS) # Control the frame rate to limit CPU usage
 
+    stop_terminal_input.set()
+    terminal_thread.join(timeout=0.1)
     pygame.quit() # Uninitialize pygame modules gracefully
 
 # --- Entry point of the script ---

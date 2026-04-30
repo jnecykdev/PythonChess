@@ -8,12 +8,18 @@ import pygame
 import pytest
 
 from chess_board import (
+    BoardRenderer,
+    ChessBoard,
+    ClickController,
+    ChessGame,
+)
+from config import (
     BOARD_SIZE,
+    LEGAL_CAPTURE_COLOR,
     LEGAL_MOVE_COLOR,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SQUARE_SIZE,
-    ChessBoard,
 )
 from piece import Piece
 from utils import parse_move_input
@@ -91,6 +97,15 @@ def test_chess_board_starts_with_all_piece_images_loaded(chess_board):
     """
     assert len(chess_board.piece_images) == 12
     assert chess_board.board.board_fen() == chess.STARTING_BOARD_FEN
+
+
+def test_chess_board_composes_game_renderer_and_click_controller(chess_board):
+    """
+    Confirms ChessBoard delegates to separate game, renderer, and click objects.
+    """
+    assert isinstance(chess_board.game, ChessGame)
+    assert isinstance(chess_board.renderer, BoardRenderer)
+    assert isinstance(chess_board.click_controller, ClickController)
 
 
 def test_terminal_move_path_makes_legal_move_and_clears_selection(chess_board):
@@ -206,6 +221,20 @@ def test_click_promotion_defaults_to_queen(chess_board):
     assert promoted_piece.color == chess.WHITE
 
 
+def test_click_promotion_can_be_configured():
+    """
+    Verifies GUI pawn promotion can use a configured piece type.
+    """
+    chess_board = ChessBoard(promotion_piece=chess.ROOK)
+    chess_board.board = chess.Board("8/P7/8/8/8/8/8/4k2K w - - 0 1")
+    chess_board.handle_click(square_center(chess.A7))
+
+    assert chess_board.handle_click(square_center(chess.A8)) == "a7a8r"
+    promoted_piece = chess_board.board.piece_at(chess.A8)
+    assert promoted_piece.piece_type == chess.ROOK
+    assert promoted_piece.color == chess.WHITE
+
+
 def test_clicks_are_ignored_after_game_over(chess_board):
     """
     Ensures GUI clicks cannot alter selection after a completed game.
@@ -233,6 +262,21 @@ def test_draw_board_paints_legal_destinations_green(chess_board):
     assert green_pixel.g > green_pixel.r
     assert green_pixel.g > green_pixel.b
     assert abs(green_pixel.g - LEGAL_MOVE_COLOR[1]) < 80
+
+
+def test_renderer_reuses_cached_highlight_overlays(chess_board):
+    """
+    Confirms highlight overlays are created once and reused while drawing.
+    """
+    move_highlight = chess_board.renderer.move_highlight
+    capture_highlight = chess_board.renderer.capture_highlight
+
+    chess_board.draw_board(pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)))
+
+    assert chess_board.renderer.move_highlight is move_highlight
+    assert chess_board.renderer.capture_highlight is capture_highlight
+    assert move_highlight.get_at((0, 0))[:3] == LEGAL_MOVE_COLOR
+    assert capture_highlight.get_at((0, 0))[:3] == LEGAL_CAPTURE_COLOR
 
 
 def test_save_and_load_game_state_round_trip(chess_board, tmp_path):
